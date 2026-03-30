@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Socket Checkbox Sync</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        margin: 0;
+        padding: 24px;
+      }
+
+      h1 {
+        margin-top: 0;
+      }
+
+      #checkbox-container {
+        display: grid;
+        gap: 8px;
+        grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+        margin-top: 20px;
+      }
+
+      .checkbox-item {
+        align-items: center;
+        border: 1px solid #d0d7de;
+        border-radius: 8px;
+        display: flex;
+        justify-content: center;
+        min-height: 44px;
+        padding: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Realtime Checkbox Board</h1>
+    <p>Open this page in two tabs and watch the checkboxes stay in sync.</p>
+    <div id="checkbox-container"></div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      const totalCheckboxes = 1000;
+      const checkboxContainer = document.getElementById("checkbox-container");
+      const socket = io();
+
+      Array.from({ length: totalCheckboxes }, (_, index) => {
+        const wrapper = document.createElement("label");
+        wrapper.className = "checkbox-item";
+
+        const input = document.createElement("input");
+        input.type = "checkbox";
+        input.id = `index-${index}`;
+        input.addEventListener("change", () => {
+          socket.emit("checkbox-update", {
+            index,
+            value: input.checked,
+          });
+        });
+
+        wrapper.append(input);
+        checkboxContainer.append(wrapper);
+      });
+
+      socket.on("checkbox-state", (values) => {
+        values.forEach((value, index) => {
+          const input = document.getElementById(`index-${index}`);
+          if (input instanceof HTMLInputElement) {
+            input.checked = Boolean(value);
+          }
+        });
+      });
+
+      socket.on("checkbox-update", ({ index, value }) => {
+        const input = document.getElementById(`index-${index}`);
+        if (input instanceof HTMLInputElement) {
+          input.checked = value;
+        }
+      });
+    </script>
+  </body>
+</html>
