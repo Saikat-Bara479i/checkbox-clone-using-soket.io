@@ -3,8 +3,11 @@ import axios from "axios";
 import { Redis } from "ioredis";
 import http from "http";
 import { Server } from "socket.io";
+const PORT = Number(process.env.PORT ?? process.argv[2] ?? 3000);
 
 const redis = new Redis({ host: "localhost", port: Number(6379) });
+const redisSubscriber = new Redis({ host: "localhost", port: Number(6379) });
+const redisPublisher = new Redis({ host: "localhost", port: Number(6379) });  
 const app = express();
 const httpServer = http.createServer(app);
 const io = new Server({});
@@ -25,12 +28,18 @@ async function getCheckboxState() {
 }
 
 io.attach(httpServer);
+redisSubscriber.subscribe("checkbox-updates");
+redisSubscriber.on("message", (channel, message) => {
+  console.log("Checkbox updated:", JSON.parse(message));
+  io.emit("checkbox-update", JSON.parse(message));
+});
 io.on("connection", async (socket) => {
   console.log(`a user connected ${socket.id}`);
 
   socket.emit("checkbox-state", await getCheckboxState());
 
   socket.on("checkbox-update", async (data: CheckboxUpdatePayload) => {
+    await redisPublisher.publish("checkbox-updates", JSON.stringify(data));
     const { index, value } = data;
 
     if (
@@ -62,7 +71,6 @@ app.use(async function (req, res, next) {
 
   next();
 });
-const PORT = 3000;
 const cachestore: { name?: string } = {
   name: "",
 };
